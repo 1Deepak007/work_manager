@@ -5,12 +5,13 @@ import Navbar from '../components/Navbar';
 import { getToken } from '../utils/auth';
 import { fetchProfile, profileCompleteness } from '../utils/profile';
 import { IoCloseCircleSharp } from "react-icons/io5";
+import { MdModeEditOutline } from "react-icons/md";
 
 const Profile = () => {
     const [user, setUser] = useState({
         name: '',
-        email: '',
         contact: '',
+        email: '',
         hobbies: '',
         profilePicture: '',
         alternateEmail: '',
@@ -29,23 +30,34 @@ const Profile = () => {
         location: '',
         homeTown: '',
         profession: '',
+        profilePicture: '',
     });
+    
 
     useEffect(() => {
         const loadProfile = async () => {
-            await fetchProfile((profileData) => {
-                setUser(profileData);
-                setFormData({
-                    name: profileData.name || '',
-                    contact: profileData.contact || '',
-                    hobbies: profileData.hobbies || '',
-                    alternateEmail: profileData.alternateEmail || '',
-                    location: profileData.location || '',
-                    homeTown: profileData.homeTown || '',
-                    profession: profileData.profession || '',
-                });
-                setCompleteness(profileCompleteness(profileData));
-            });
+            try {
+                // Call the refactored function directly
+                const profileData = await fetchProfile();
+
+                if (profileData) {
+                    setUser(profileData);
+                    setFormData({
+                        name: profileData.name || '',
+                        contact: profileData.contact || '',
+                        hobbies: profileData.hobbies || '',
+                        alternateEmail: profileData.alternateEmail || '',
+                        location: profileData.location || '',
+                        homeTown: profileData.homeTown || '',
+                        profession: profileData.profession || '',
+                        profilePicture: profileData.profilePicture || '',
+                    });
+                    setCompleteness(profileCompleteness(profileData));
+                }
+            } catch (error) {
+                console.error("Failed to load profile component state:", error);
+                toast.error("Could not load profile details. Please check your connection or log in again.");
+            }
         };
 
         loadProfile();
@@ -60,6 +72,7 @@ const Profile = () => {
             location: user.location || '',
             homeTown: user.homeTown || '',
             profession: user.profession || '',
+            profilePicture: user.profilePicture || '',
         });
         setSelectedFile(null);
         setIsModalOpen(true);
@@ -76,17 +89,27 @@ const Profile = () => {
         payload.append('homeTown', formData.homeTown);
         payload.append('profession', formData.profession);
 
+        console.log("Checking selected file state:", selectedFile);
         if (selectedFile) {
             payload.append('profilePicture', selectedFile);
         }
 
+        for (let pair of payload.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
+        }
+
         try {
-            await axios.put('http://localhost:5000/api/users/profile', payload, {
+            console.log('payload : ', payload);
+            // ✅ Catch the response object coming back from the backend
+            const response = await axios.patch('http://127.0.0.1:5000/api/profile/update_profile', payload, {
                 headers: {
                     Authorization: `Bearer ${getToken()}`,
                     'Content-Type': 'multipart/form-data',
                 },
             });
+
+            // ✅ Destructure the transformed user data returned by the backend fix
+            const { user: serverUpdatedUser } = response.data;
 
             const updatedProfile = {
                 ...user,
@@ -96,14 +119,16 @@ const Profile = () => {
                 alternateEmail: formData.alternateEmail,
                 location: formData.location,
                 homeTown: formData.homeTown,
-                profession: formData.profession
+                profession: formData.profession,
+                profilePicture: selectedFile ? serverUpdatedUser.profilePicture : user.profilePicture,
             };
 
             setUser(updatedProfile);
             setCompleteness(profileCompleteness(updatedProfile));
             setIsModalOpen(false);
             toast.success('Profile updated successfully!');
-        } catch {
+        } catch (error) {
+            console.error(error);
             toast.error('Failed to update profile');
         }
     };
@@ -113,111 +138,140 @@ const Profile = () => {
             <Navbar />
 
             {/* <div className="mx-auto flex min-h-[calc(100vh-80px)] max-w-7xl flex-col justify-center px-4 py-8 sm:px-6 lg:px-8"> */}
-                {/* <div className="overflow-hidden rounded-[36px] border border-white/70 bg-white/80 shadow-[0_25px_90px_-25px_rgba(15,23,42,0.35)] backdrop-blur-xl"> */}
-                    <div className="bg-linear-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-8 text-white sm:px-8 lg:px-10">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                            <div>
-                                <p className="mb-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-blue-100">
-                                    Personal profile
-                                </p>
-                                <h2 className="text-3xl font-semibold sm:text-4xl">Your profile overview</h2>
-                                <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
-                                    A premium, full-page profile experience with quick updates and elegant controls.
-                                </p>
-                            </div>
+            {/* <div className="overflow-hidden rounded-[36px] border border-white/70 bg-white/80 shadow-[0_25px_90px_-25px_rgba(15,23,42,0.35)] backdrop-blur-xl"> */}
+            <div className="bg-linear-to-r from-slate-900 via-blue-900 to-indigo-900 px-6 py-8 text-white sm:px-8 lg:px-10">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p className="mb-2 inline-flex rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-blue-100">
+                            Personal profile
+                        </p>
+                        <h2 className="text-3xl font-semibold sm:text-4xl">Your profile overview</h2>
+                        <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:text-base">
+                            A premium, full-page profile experience with quick updates and elegant controls.
+                        </p>
+                    </div>
 
-                            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-slate-200">
-                                <p className="font-medium text-white">Profile completeness</p>
-                                <p className="mt-1 text-2xl font-semibold text-white">{Math.round(completeness)}%</p>
-                            </div>
+                    <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm text-slate-200">
+                        <p className="font-medium text-white">Profile completeness</p>
+                        <p className="mt-1 text-2xl font-semibold text-white">{Math.round(completeness)}%</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-10">
+                <div className="rounded-[28px] border border-slate-200/80 bg-slate-50/80 p-6 shadow-inner shadow-slate-100">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Account</p>
+                            <h3 className="mt-2 text-2xl font-semibold text-slate-900">{user.name || 'Your name'}</h3>
+                        </div>
+                        <button
+                            onClick={openModal}
+                            className="text-black bg-slate-50/80 px-0 py-0 text-md font-semibold transition hover:scale-110 hover:rotate-180 hover:text-green-500"
+                        >
+                            <MdModeEditOutline/>
+                        </button>
+                    </div>
+
+                    <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-center">
+                        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-linear-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200">
+                            {selectedFile ? (
+                                <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="h-full w-full object-cover" />
+                            ) : user.profilePicture ? (
+                                <img src={user.profilePicture} alt="Profile" className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="text-3xl font-semibold text-white">{user.name?.charAt(0) || 'U'}</span>
+                            )}
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-sm text-slate-500">Primary contact</p>
+                            <p className="text-lg font-semibold text-slate-800">{user.email || 'your@email.com'}</p>
+                            <p className="text-sm text-slate-600">{user.contact || 'Add your contact number'}</p>
                         </div>
                     </div>
 
-                    <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-10 lg:py-10">
-                        <div className="rounded-[28px] border border-slate-200/80 bg-slate-50/80 p-6 shadow-inner shadow-slate-100">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Account</p>
-                                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">{user.name || 'Your name'}</h3>
-                                </div>
-                                <button
-                                    onClick={openModal}
-                                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
-                                >
-                                    Edit profile
-                                </button>
-                            </div>
-
-                            <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-center">
-                                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-linear-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-200">
-                                    {selectedFile ? (
-                                        <img src={URL.createObjectURL(selectedFile)} alt="Preview" className="h-full w-full object-cover" />
-                                    ) : user.profilePicture ? (
-                                        <img src={user.profilePicture} alt="Profile" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <span className="text-3xl font-semibold text-white">{user.name?.charAt(0) || 'U'}</span>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="text-sm text-slate-500">Primary contact</p>
-                                    <p className="text-lg font-semibold text-slate-800">{user.email || 'your@email.com'}</p>
-                                    <p className="text-sm text-slate-600">{user.contact || 'Add your contact number'}</p>
-                                </div>
-                            </div>
-
-                            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Contact number</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.contact || 'Not provided'}</p>
-                                </div>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Hobbies</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.hobbies || 'Not listed'}</p>
-                                </div>
-                            </div>
-                            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Alternate email</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.alternateEmail || 'Not provided'}</p>
-                                </div>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Location</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.location || 'Not provided'}</p>
-                                </div>
-                            </div>
-                            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Hometown</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.homeTown || 'Not provided'}</p>
-                                </div>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                                    <p className="text-sm text-slate-500">Profession</p>
-                                    <p className="mt-1 font-semibold text-slate-800">{user.profession || 'Not provided'}</p>
-                                </div>
-                            </div>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Contact number</p>
+                            <p className="mt-1 font-semibold text-slate-800">{user.contact || 'Not provided'}</p>
                         </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Hobbies</p>
+                            
+                            <div className="relative group inline-block">
+  <p className="mt-1 font-semibold text-slate-800 cursor-pointer">
+    {user?.hobbies
+      ? user.hobbies.split(',').slice(0, 3).join(', ') + '...'
+      : 'Not provided'}
+  </p>
 
-                        <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
-                            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Quick notes</p>
-                            <h3 className="mt-2 text-2xl font-semibold text-slate-900">Keep your profile sharp</h3>
-                            <p className="mt-3 text-sm leading-6 text-slate-600">
-                                Update your name, contact details, hobbies, or photo whenever you want. The form opens in a clean modal so the experience feels polished and focused.
-                            </p>
+  {/* Tooltip Bubble */}
+  {user?.hobbies && (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center z-10 w-max max-w-xs">
+      <div className="bg-slate-900 text-white text-xs rounded-md py-1.5 px-3 shadow-lg text-center whitespace-normal">
+        {user.hobbies}
+      </div>
+      {/* Tooltip Arrow */}
+      <div className="w-2 h-2 -mt-1 bg-slate-900 rotate-45"></div>
+    </div>
+  )}
+</div>
 
-                            <div className="mt-6 space-y-3">
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <p className="text-sm font-semibold text-slate-800">Why this works</p>
-                                    <p className="mt-1 text-sm text-slate-600">It keeps the page visually calm while giving you a dedicated editing flow.</p>
-                                </div>
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <p className="text-sm font-semibold text-slate-800">Best for</p>
-                                    <p className="mt-1 text-sm text-slate-600">Standard websites often use this approach for profile and account settings.</p>
-                                </div>
-                            </div>
+                            {/* <p
+  className="mt-1 font-semibold text-slate-800 cursor-pointer"
+  title={user?.hobbies || 'Not provided'}
+>
+  {user?.hobbies
+    ? user.hobbies.split(',').slice(0, 3).join(', ') + '...'
+    : 'Not provided'}
+</p> */}
+
+
                         </div>
                     </div>
-                {/* </div> */}
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Alternate email</p>
+                            <p className="mt-1 font-semibold text-slate-800">{user.alternateEmail || 'Not provided'}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Location</p>
+                            <p className="mt-1 font-semibold text-slate-800">{user.location || 'Not provided'}</p>
+                        </div>
+                    </div>
+                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Hometown</p>
+                            <p className="mt-1 font-semibold text-slate-800">{user.homeTown || 'Not provided'}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-sm text-slate-500">Profession</p>
+                            <p className="mt-1 font-semibold text-slate-800">{user.profession || 'Not provided'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Quick notes</p>
+                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">Keep your profile sharp</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                        Update your name, contact details, hobbies, or photo whenever you want. The form opens in a clean modal so the experience feels polished and focused.
+                    </p>
+
+                    <div className="mt-6 space-y-3">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-sm font-semibold text-slate-800">Why this works</p>
+                            <p className="mt-1 text-sm text-slate-600">It keeps the page visually calm while giving you a dedicated editing flow.</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-sm font-semibold text-slate-800">Best for</p>
+                            <p className="mt-1 text-sm text-slate-600">Standard websites often use this approach for profile and account settings.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {/* </div> */}
             {/* </div> */}
 
             {isModalOpen && (
@@ -232,7 +286,7 @@ const Profile = () => {
                                 onClick={() => setIsModalOpen(false)}
                                 className="text-xl"
                             >
-                                <IoCloseCircleSharp />
+                                <IoCloseCircleSharp  className='hover:text-red-500 hover:rotate-30 hover:scale-110'/>
                             </button>
                         </div>
 
@@ -268,14 +322,14 @@ const Profile = () => {
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-slate-700">Hometown</label>
                                     <input
                                         type="text"
-                                        value={formData.hometown}
-                                        onChange={(e) => setFormData({ ...formData, hometown: e.target.value })}
+                                        value={formData.homeTown}
+                                        onChange={(e) => setFormData({ ...formData, homeTown: e.target.value })}
                                         className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                                     />
                                 </div>
@@ -290,7 +344,7 @@ const Profile = () => {
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="mb-2 block text-sm font-medium text-slate-700">Full name</label>

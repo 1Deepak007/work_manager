@@ -6,6 +6,7 @@ const path = require('path');
 
 const auth_router = require('./router/authRoutes') 
 const task_router = require('./router/taskRoutes')
+const profile_router = require('./router/profileRoutes')
 
 
 const Host = process.env.DB_HOST || '127.0.0.1';
@@ -30,6 +31,7 @@ app.listen(Port, Host, () => {
 
 app.use('/api/auth', auth_router);
 app.use('/api/task', task_router);
+app.use('/api/profile', profile_router);
 
 
 
