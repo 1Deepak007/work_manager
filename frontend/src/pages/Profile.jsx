@@ -133,6 +133,30 @@ const Profile = () => {
         }
     };
 
+
+
+    //=================================scratchpad
+    const [note, setNote] = useState(() => {
+        return localStorage.getItem('user_scratchpad_note') || '';
+    });
+    const [savedStatus, setSavedStatus] = useState('Saved locally');
+
+    useEffect(() => {
+        setSavedStatus('Saving...');
+        const timeout = setTimeout(() => {
+            localStorage.setItem('user_scratchpad_note', note);
+            setSavedStatus('Saved locally');
+        }, 300);
+
+        return () => clearTimeout(timeout);
+    }, [note]);
+
+    const handleClear = () => {
+        setNote('');
+        localStorage.removeItem('user_scratchpad_note');
+    };
+    
+
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_30%),linear-gradient(135deg,#f8fbff_0%,#f3f6ff_45%,#eef2ff_100%)]">
             <Navbar />
@@ -253,23 +277,47 @@ const Profile = () => {
                 </div>
 
                 <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.25)]">
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">Quick notes</p>
-                    <h3 className="mt-2 text-2xl font-semibold text-slate-900">Keep your profile sharp</h3>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                        Update your name, contact details, hobbies, or photo whenever you want. The form opens in a clean modal so the experience feels polished and focused.
-                    </p>
+            <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
+                    Quick Notes
+                </p>
+                <span className="text-xs font-medium text-slate-400">
+                    {savedStatus}
+                </span>
+            </div>
 
-                    <div className="mt-6 space-y-3">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-sm font-semibold text-slate-800">Why this works</p>
-                            <p className="mt-1 text-sm text-slate-600">It keeps the page visually calm while giving you a dedicated editing flow.</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                            <p className="text-sm font-semibold text-slate-800">Best for</p>
-                            <p className="mt-1 text-sm text-slate-600">Standard websites often use this approach for profile and account settings.</p>
-                        </div>
-                    </div>
-                </div>
+            <h3 className="mt-2 text-2xl font-semibold text-slate-900">
+                Personal Scratchpad
+            </h3>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+                Jot down temporary notes, reminders, or links. Saved automatically in your browser.
+            </p>
+
+            <div className="mt-4">
+                <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Type your quick notes here..."
+                    rows={6}
+                    className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-900/5"
+                />
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                    {note.length} characters
+                </span>
+                {note && (
+                    <button
+                        onClick={handleClear}
+                        type="button"
+                        className="text-xs font-medium text-rose-500 hover:text-rose-600 transition"
+                    >
+                        Clear note
+                    </button>
+                )}
+            </div>
+        </div>
             </div>
             {/* </div> */}
             {/* </div> */}
